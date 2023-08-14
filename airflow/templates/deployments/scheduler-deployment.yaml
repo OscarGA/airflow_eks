@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scheduler
+  namespace: local-airflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: scheduler
+  template:
+    metadata:
+      labels:
+        name: scheduler
+    spec:
+      securityContext:
+        runAsUser: 50000
+      serviceAccountName: scheduler-sa
+      containers:
+        - name: scheduler
+          image: apache/airflow:latest # Use your airflow docker image here, either selfbuilt with dags or apache/airflow:10.10.12
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+              value: postgresql+psycopg2://admin:test123@postgres:5432/postgresdb
+            - name: AIRFLOW__CORE__EXECUTOR
+              value: LocalExecutor #KubernetesExecutor
+            - name: AIRFLOW__KUBERNETES__NAMESPACE
+              value: local-airflow
+            - name: AIRFLOW__KUBERNETES__WORKER_SERVICE_ACCOUNT_NAME
+              value: scheduler-sa
+            - name: AIRFLOW__KUBERNETES__IN_CLUSTER
+              value: 'true'
+          volumeMounts:
+            - mountPath: /opt/airflow/logs/
+              mountPropagation: None
+              name: airflow-logs
+            - mountPath: /opt/airflow/dags/
+              mountPropagation: None
+              name: airflow-dags
+          args: 
+            - bash
+            - -c
+            - exec airflow scheduler
+          gitSync:
+            enabled: true
+            repo: git@github.com:OscarGA/kubernetes.dags.git
+            branch: main
+            subPath: "dags"
+            sshKeySecret: airflow-ssh-secret
+          extraSecrets:
+            airflow-ssh-secret:
+              data: |
+                gitSshKey: 'LS0tLS1CRUdJTiBPUEVOU1NIIFBSSVZBVEUgS0VZLS0tLS0KYjNCbGJuTnphQzFyWlhrdGRqRUFBQUFBQ21GbGN6STFOaTFqZEhJQUFBQUdZbU55ZVhCMEFBQUFHQUFBQUJCakFQeWlGZwpYWUk1RTR2WmRaMHgvQkFBQUFFQUFBQUFFQU      FBQXpBQUFBQzNOemFDMWxaREkxTlRFNUFBQUFJS2Jzelo3QXBOQ2tVd2hHCmhZakJLZGJtOU4zVXo2aklYYjRRNGtjaHJQNWJBQUFBb055R2ZLV0hmS2hScFRjSlF4aFBreHBJblR1ZEF5N1NFQm5BL2gKSHRRazZuOXZ4NlNHMDRlQjl1      Yk1vVzE5WHFNejQveEFUVzRCbmp4d1p2VU5vTVBqbWw2TkdLcWN5THhpTTZRRGZrQklWNwpLQ0RFYjVwbHdoUXZYM0JSTnc2eERPUnFtaGVFZkViTUZNNmtOTnVJaThraHZXYklUSW9VSFk4Zzl1Z1h1WmJQZHF6am0wCllObERUdlVNMX'
+      volumes:
+        - emptyDir: {}
+          name: airflow-dags
+        - emptyDir: {}
+          name: airflow-logs
