@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow
+  namespace: local-airflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: airflow
+  template:
+    metadata:
+      labels:
+        name: airflow
+    spec:
+      securityContext:
+        runAsUser: 50000
+      automountServiceAccountToken: true
+      containers:
+        - name: webserver
+          image: apache/airflow:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          env:
+            - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+              value: postgresql+psycopg2://admin:test123@postgres:5432/postgresdb
+            - name: AIRFLOW__CORE__EXECUTOR
+              value: KubernetesExecutor
+            - name: AIRFLOW__WEBSERVER__AUTHENTICATE
+              value: "True"
+            - name: AIRFLOW__WEBSERVER__LOG_FETCH_TIMEOUT_SEC
+              value: "15"
+            - name: AIRFLOW__API__AUTH_BACKENDS
+              #value: airflow.api.auth.backend.basic_auth
+              value: airflow.api.auth.backend.default
+            - name: AIRFLOW__KUBERNETES__NAMESPACE
+              value: local-airflow
+            - name: AIRFLOW__KUBERNETES__WORKER_SERVICE_ACCOUNT_NAME
+              value: scheduler-sa
+            - name: AIRFLOW__KUBERNETES_EXECUTOR__IN_CLUSTER
+              value: 'true'
+            - name: AIRFLOW__WEBSERVER__WEB_SERVER_HOST
+              value: "0.0.0.0"
+            - name: AIRFLOW__WEBSERVER__WEB_SERVER_PORT
+              value: "8080"
+            - name: AIRFLOW__WEBSERVER__BASE_URL
+              value: "http://localhost:8080"
+          volumeMounts:
+            - mountPath: /opt/airflow/logs/
+              mountPropagation: None
+              name: airflow-logs
+            - mountPath: /opt/airflow/dags/
+              mountPropagation: None
+              name: airflow-dags
+          args: 
+            - bash
+            - -c
+            - exec airflow webserver -p 8080
+      volumes:
+        - emptyDir: {}
+          name: airflow-dags
+        - emptyDir: {}
+          name: airflow-logs
