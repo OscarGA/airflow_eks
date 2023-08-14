@@ -1,0 +1,12 @@
+---
+# Source: airflow/templates/configmaps/configmap.yaml
+################################
+## Airflow ConfigMap
+#################################
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-config
+data: 
+  sql_alchemy_conn: "postgresql://admin:test123@postgres:5432/postgresdb" 
+  executor: "KubernetesExecutor" 
