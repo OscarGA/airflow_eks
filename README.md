@@ -44,6 +44,6 @@
 
 14. Create a service to expose the webserver: `kubectl apply -f services/airflow-service.yaml -n local-airflow`
 
-15. Make port fordward to access to the webserver UI from your local machine: ``
+15. Make port fordward to access to the webserver UI from your local machine: `kubectl port-forward airflow-8cc8c598-kkchg 8080:8080`
 
 16. Create a user to access to the UI: `airflow users create --e EMAIL --f FIRSTNAME --l LASTNAME --r ROLE -u USERNAME`
